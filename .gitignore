@@ -1,0 +1,35 @@
+# Node.js dependencies
+node_modules/
+
+# Build artifacts created by pkg
+dist/
+*.exe
+*.dll
+*.deb
+*.tar.gz
+
+# Puppeteer browser cache
+**/.local-chromium
+**/.cache/puppeteer
+
+# Logs and temporary files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+# Ignore compiled TypeScript files, if applicable
+*.tsbuildinfo
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.sublime-workspace
+
