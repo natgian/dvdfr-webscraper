@@ -32,7 +32,12 @@ const startBrowser = async () => {
  */
 const scrapePage = async (page, pageNumber) => {
   const url = `https://www.dvdfr.com/index_bacs.php?page=${pageNumber}`;
-  await page.goto(url);
+  const response = await page.goto(url);
+
+  if (!response || response.status() >= 400) {
+    console.log(`Fehler auf dvdfr.com, Status: ${response?.status()}`);
+    return false;
+  }
 
   return await page.evaluate(() => {
     const movieElements = document.querySelectorAll(".singleResult");
@@ -70,6 +75,26 @@ const scrapeMovieDetails = async (page, movie) => {
   return movie;
 };
 
+const scrapeAllPages = async (page, maxPages) => {
+  const allMovies = [];
+
+  for (let i = 0; i <= maxPages; i++) {
+    const movies = await scrapePage(page, i);
+
+    if (!movies) {
+      console.log("Seite zurzeit nicht erreichbar, bitte später erneut versuchen.");
+      return;
+    } else {
+      for (const movie of movies) {
+        await scrapeMovieDetails(page, movie);
+      }
+    }
+
+    allMovies.push(...movies);
+  }
+  return allMovies;
+};
+
 /**
  * Saves the movies array as a CSV file.
  *
@@ -89,16 +114,13 @@ const saveCSV = (movies) => {
  */
 const scrape = async () => {
   const { browser, page } = await startBrowser();
-  let allMovies = [];
-
   console.log("Daten werden ermittelt, bitte warten...");
 
-  for (let i = 0; i <= maxPages; i++) {
-    const movies = await scrapePage(page, i);
-    for (const movie of movies) {
-      await scrapeMovieDetails(page, movie);
-    }
-    allMovies.push(...movies);
+  const allMovies = await scrapeAllPages(page, maxPages);
+
+  if (!allMovies) {
+    await browser.close();
+    return;
   }
 
   saveCSV(allMovies);
