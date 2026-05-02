@@ -5,7 +5,7 @@
   "bin": "scrape.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "pkg . --targets node16-macos-arm64,node16-macos-x64, node16-win-x64 --output dist/dvdfr-webscraper"
+    "build": "npx @yao-pkg/pkg . --targets node22-macos-x64 --output dist/dvdfr-webscraper"
   },
   "keywords": [],
   "author": "",
@@ -13,23 +13,19 @@
   "description": "",
   "pkg": {
     "assets": [
-      "node_modules/puppeteer/.local-chromium/**/*"
+      "node_modules/exceljs/**/*"
     ],
     "scripts": [
       "scrape.js"
     ],
     "targets": [
-      "node16-macos-arm64",
-      "node16-macos-x64",
-      "node16-win-x64"
-    ],
-    "files": [
-      "**/*",
-      "!node_modules/**/*.d.ts",
-      "!node_modules/**/*.test.js"
+      "node22-macos-arm64",
+      "node22-macos-x64",
+      "node22-win-x64"
     ]
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "puppeteer": "^23.1.1"
   }
 }
