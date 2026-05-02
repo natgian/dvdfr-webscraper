@@ -4,6 +4,11 @@
 const puppeteer = require("puppeteer");
 
 /**
+ * Library to read and write spreadsheet data and styles to XLSX, CV and JSON.
+ */
+const ExcelJS = require("exceljs");
+
+/**
  * File System
  */
 const fs = require("fs");
@@ -96,17 +101,27 @@ const scrapeAllPages = async (page, maxPages) => {
 };
 
 /**
- * Saves the movies array as a CSV file.
+ * Saves the movies data into an XLSX file.
  *
  * @param {Array} movies - List of movies with details
  */
-const saveCSV = (movies) => {
-  const headers = ["EAN", "Title", "Label", "Release", "Link"];
-  const rows = movies.map((movie) => [movie.ean, movie.title, movie.label, movie.release, movie.link].map((field) => `"${field || ""}"`).join(","));
-  const csvContent = [headers.join(","), ...rows].join("\n"); // Combine headers and rows
+const saveXLSX = async (movies) => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("dvdfr Wochennews");
 
-  fs.writeFileSync("dvdfr.csv", csvContent);
-  console.log("Daten gespeichert im File dvdfr.csv");
+  sheet.columns = [
+    { header: "EAN", key: "ean", width: 20 },
+    { header: "Title", key: "title", width: 50 },
+    { header: "Label", key: "label", width: 30 },
+    { header: "Release", key: "release", width: 15 },
+    { header: "Link", key: "link", width: 60 },
+  ];
+
+  sheet.getRow(1).font = { bold: true };
+  movies.forEach((movie) => sheet.addRow(movie));
+
+  await workbook.xlsx.writeFile("dvdfr.xlsx");
+  console.log("Daten gespeichert im File dvdfr.xlsx");
 };
 
 /**
@@ -120,10 +135,11 @@ const scrape = async () => {
 
   if (!allMovies) {
     await browser.close();
-    return;
+    console.log("Keine Daten gefunden");
+    return [];
   }
 
-  saveCSV(allMovies);
+  await saveXLSX(allMovies);
   await browser.close();
 };
 
