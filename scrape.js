@@ -8,6 +8,9 @@ const puppeteer = require("puppeteer");
  */
 const ExcelJS = require("exceljs");
 
+const os = require("os");
+const path = require("path");
+
 /**
  * File System
  */
@@ -58,6 +61,7 @@ const scrapePage = async (page, pageNumber) => {
 
 /**
  * Scrapes detailed info (EAN code and release date) for a given movie.
+ *
  * @param {puppeteer.Page} page - The Puppeteer page instance
  * @param {Object} movie - Movie object containing title, label and link
  * @returns - Updated movie object with EAN and release date
@@ -80,6 +84,13 @@ const scrapeMovieDetails = async (page, movie) => {
   return movie;
 };
 
+/**
+ * Scrapes the movie data from all pages.
+ *
+ * @param {puppeteer.Page} page - The Puppeteer page instance
+ * @param {number} maxPages - The maximal pages to scrape
+ * @returns - An array of all movies
+ */
 const scrapeAllPages = async (page, maxPages) => {
   const allMovies = [];
 
@@ -110,9 +121,9 @@ const saveXLSX = async (movies) => {
   const sheet = workbook.addWorksheet("dvdfr Wochennews");
 
   sheet.columns = [
-    { header: "EAN", key: "ean", width: 20 },
-    { header: "Title", key: "title", width: 50 },
-    { header: "Label", key: "label", width: 30 },
+    { header: "EAN", key: "ean", width: 15 },
+    { header: "Title", key: "title", width: 60 },
+    { header: "Label", key: "label", width: 20 },
     { header: "Release", key: "release", width: 15 },
     { header: "Link", key: "link", width: 60 },
   ];
@@ -120,7 +131,8 @@ const saveXLSX = async (movies) => {
   sheet.getRow(1).font = { bold: true };
   movies.forEach((movie) => sheet.addRow(movie));
 
-  await workbook.xlsx.writeFile("dvdfr.xlsx");
+  const desktopPath = path.join(os.homedir(), "Desktop", "dvdfr.xlsx");
+  await workbook.xlsx.writeFile(desktopPath);
   console.log("Daten gespeichert im File dvdfr.xlsx");
 };
 
