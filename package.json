@@ -25,7 +25,9 @@
     ]
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
+    "nodemailer": "^8.0.7",
     "puppeteer": "^23.1.1"
   }
 }
