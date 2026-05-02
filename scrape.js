@@ -1,20 +1,17 @@
+const os = require("os");
+const path = require("path");
+require("dotenv").config();
+const { sendMail } = require("./mailer");
+
 /**
  * Library, which provides methods to control a headless browser.
  */
 const puppeteer = require("puppeteer");
 
 /**
- * Library to read and write spreadsheet data and styles to XLSX, CV and JSON.
+ * Library to read and write spreadsheet data and styles to XLSX, CSV and JSON.
  */
 const ExcelJS = require("exceljs");
-
-const os = require("os");
-const path = require("path");
-
-/**
- * File System
- */
-const fs = require("fs");
 
 const maxPages = 20;
 
@@ -118,7 +115,7 @@ const scrapeAllPages = async (page, maxPages) => {
  */
 const saveXLSX = async (movies) => {
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("dvdfr Wochennews");
+  const sheet = workbook.addWorksheet("dvdfr Wochen-News");
 
   sheet.columns = [
     { header: "EAN", key: "ean", width: 15 },
@@ -137,6 +134,30 @@ const saveXLSX = async (movies) => {
 };
 
 /**
+ * Generates the movies data as an XLSX buffer.
+ *
+ * @param {Array} movies - List of movies with details
+ * @returns - The XLSX file as a buffer
+ */
+const generateXLSX = async (movies) => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("dvdfr Wochennews");
+
+  sheet.columns = [
+    { header: "EAN", key: "ean", width: 15 },
+    { header: "Title", key: "title", width: 60 },
+    { header: "Label", key: "label", width: 20 },
+    { header: "Release", key: "release", width: 15 },
+    { header: "Link", key: "link", width: 60 },
+  ];
+
+  sheet.getRow(1).font = { bold: true };
+  movies.forEach((movie) => sheet.addRow(movie));
+
+  return await workbook.xlsx.writeBuffer();
+};
+
+/**
  * Main function that orchestrates the scraping of all pages and movies.
  */
 const scrape = async () => {
@@ -151,7 +172,9 @@ const scrape = async () => {
     return [];
   }
 
-  await saveXLSX(allMovies);
+  // await saveXLSX(allMovies);
+  const xlsxData = await generateXLSX(allMovies);
+  await sendMail(xlsxData);
   await browser.close();
 };
 
