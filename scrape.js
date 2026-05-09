@@ -1,80 +1,58 @@
 const os = require("os");
 const path = require("path");
 require("dotenv").config();
+const axios = require("axios");
+const cheerio = require("cheerio");
+const ExcelJS = require("exceljs");
 const { sendMail } = require("./mailer");
 
-/**
- * Library, which provides methods to control a headless browser.
- */
-const puppeteer = require("puppeteer");
-
-/**
- * Library to read and write spreadsheet data and styles to XLSX, CSV and JSON.
- */
-const ExcelJS = require("exceljs");
-
-const maxPages = 20;
-
-/**
- * Launches a new browser instance and opens a page.
- *
- * @returns - The browser and page objects
- */
-const startBrowser = async () => {
-  const browser = await puppeteer.launch({
-    ignoreDefaultArgs: ["--disable-extensions"],
-  });
-  const page = await browser.newPage();
-  return { browser, page };
-};
+const MAX_PAGES = 20;
 
 /**
  * Scrapes movie title, label and link from a given page number.
  *
- * @param {puppeteer.Page} page - The Puppeteer page instance
  * @param {number} pageNumber - The page number to scrape
- * @returns
+ * @returns {Promise<Array|false>} - Array of movies or false if there is an error
  */
-const scrapePage = async (page, pageNumber) => {
+const scrapePage = async (pageNumber) => {
   const url = `https://www.dvdfr.com/index_bacs.php?page=${pageNumber}`;
-  const response = await page.goto(url);
+  const { data, status } = await axios.get(url);
 
-  if (!response || response.status() >= 400) {
-    console.log(`Fehler auf dvdfr.com, Status: ${response?.status()}`);
+  if (status >= 400) {
+    console.log(`Fehler auf dvdfr.com, Status: ${status}`);
     return false;
   }
 
-  return await page.evaluate(() => {
-    const movieElements = document.querySelectorAll(".singleResult");
-    return Array.from(movieElements).map((movie) => {
-      const title = movie.querySelector(".compact h2 a")?.textContent ?? null;
-      const label = movie.querySelector(".compact .left a")?.textContent ?? null;
-      const link = movie.querySelector(".compact h2 a")?.href ?? null;
+  const $ = cheerio.load(data);
+  const movies = [];
 
-      return { title, label, link };
-    });
+  $(".singleResult").each((_, movie) => {
+    const title = $(movie).find(".compact h2 a").text() || null;
+    const label = $(movie).find(".compact .left a").text() || null;
+    const rawLink = $(movie).find(".compact h2 a").attr("href") || null;
+    const link = rawLink ? `https:${rawLink}` : null;
+
+    movies.push({ title, label, link });
   });
+
+  return movies;
 };
 
 /**
  * Scrapes detailed info (EAN code and release date) for a given movie.
  *
- * @param {puppeteer.Page} page - The Puppeteer page instance
  * @param {Object} movie - Movie object containing title, label and link
- * @returns - Updated movie object with EAN and release date
+ * @returns {Promise<Object>} - Updated movie object with EAN and release date
  */
-const scrapeMovieDetails = async (page, movie) => {
+const scrapeMovieDetails = async (movie) => {
   if (!movie.link) return movie;
-  await page.goto(movie.link, { waitUntil: "load" });
 
-  const { eanCode, releaseDate } = await page.evaluate(() => {
-    const pElements = document.querySelectorAll("#editeur .twoColumns p");
-    const timeElements = document.querySelectorAll("time");
-    const pEAN = pElements[3];
-    const eanCode = pEAN ? (pEAN.nextSibling && pEAN.nextSibling.nodeType === Node.TEXT_NODE ? pEAN.nextSibling.textContent.trim() : null) : null;
-    const releaseDate = timeElements[1]?.textContent?.trim() || null;
-    return { eanCode, releaseDate };
-  });
+  const { data } = await axios.get(movie.link);
+  const $ = cheerio.load(data);
+
+  const pEAN = $("#editeur .twoColumns p").eq(3);
+  const eanCode = pEAN.length ? pEAN[0].nextSibling?.data?.trim() || null : null;
+  const releaseDate = $("time").eq(1).text().trim() || null;
 
   movie.ean = eanCode;
   movie.release = releaseDate;
@@ -84,27 +62,27 @@ const scrapeMovieDetails = async (page, movie) => {
 /**
  * Scrapes the movie data from all pages.
  *
- * @param {puppeteer.Page} page - The Puppeteer page instance
- * @param {number} maxPages - The maximal pages to scrape
- * @returns - An array of all movies
+ * @param {number} MAX_PAGES - The maximal pages to scrape
+ * @returns {Promise<Array|null>} - An array of all movies or null if there is an error
  */
-const scrapeAllPages = async (page, maxPages) => {
+const scrapeAllPages = async (MAX_PAGES) => {
   const allMovies = [];
 
-  for (let i = 0; i <= maxPages; i++) {
-    const movies = await scrapePage(page, i);
+  for (let i = 0; i <= MAX_PAGES; i++) {
+    const movies = await scrapePage(i);
 
     if (!movies) {
       console.log("Seite zurzeit nicht erreichbar, bitte später erneut versuchen.");
-      return;
-    } else {
-      for (const movie of movies) {
-        await scrapeMovieDetails(page, movie);
-      }
+      return null;
+    }
+
+    for (const movie of movies) {
+      await scrapeMovieDetails(movie);
     }
 
     allMovies.push(...movies);
   }
+
   return allMovies;
 };
 
@@ -161,21 +139,18 @@ const generateXLSX = async (movies) => {
  * Main function that orchestrates the scraping of all pages and movies.
  */
 const scrape = async () => {
-  const { browser, page } = await startBrowser();
   console.log("Daten werden ermittelt, bitte warten...");
 
-  const allMovies = await scrapeAllPages(page, maxPages);
+  const allMovies = await scrapeAllPages(MAX_PAGES);
 
   if (!allMovies) {
-    await browser.close();
     console.log("Keine Daten gefunden");
-    return [];
+    return;
   }
 
-  // await saveXLSX(allMovies);
   const xlsxData = await generateXLSX(allMovies);
   await sendMail(xlsxData);
-  await browser.close();
+  console.log("Fertig!");
 };
 
 scrape();
