@@ -5,7 +5,7 @@
   "bin": "scrape.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx @yao-pkg/pkg . --targets node22-macos-x64 --output dist/dvdfr-webscraper"
+    "build": "npx @yao-pkg/pkg . --targets node24-macos-x64 --output dist/dvdfr-webscraper"
   },
   "keywords": [],
   "author": "",
@@ -19,9 +19,9 @@
       "scrape.js"
     ],
     "targets": [
-      "node22-macos-arm64",
-      "node22-macos-x64",
-      "node22-win-x64"
+      "node24-macos-arm64",
+      "node24-macos-x64",
+      "node24-win-x64"
     ]
   },
   "dependencies": {
