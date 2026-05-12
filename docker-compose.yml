@@ -1,5 +1,5 @@
 services:
   scraper:
     build: .
-    env_file:
-      - .env
+    volumes:
+      - ./.env:/app/.env
